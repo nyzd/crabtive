@@ -1,0 +1,9 @@
+{
+  "websites": [
+    {
+      "name": "github",
+      "base_url": "https://github.com",
+      "user_url": "https://github.com/{}"
+    }
+  ]
+}
