@@ -4,16 +4,17 @@ use hyper::{body::Bytes, Request, StatusCode};
 use hyper_tls::HttpsConnector;
 use hyper_util::{client::legacy::Client, rt::TokioExecutor};
 use serde::Deserialize;
+use std::fmt::Display;
 use std::path::PathBuf;
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct WebsiteInfo {
     name: String,
     base_url: String,
     user_url: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Config {
     websites: Vec<WebsiteInfo>,
 }
@@ -46,10 +47,28 @@ pub enum CheckStatus {
     Other(u16),
 }
 
+impl Display for CheckStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CheckStatus::Available => write!(f, "Found !"),
+            CheckStatus::NotFound => write!(f, "Not Found !"),
+            CheckStatus::Other(status) => write!(f, "Error {}", status),
+        }?;
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct CheckResult<'a> {
     info: &'a WebsiteInfo,
     status: CheckStatus,
+}
+
+impl Display for CheckResult<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.info.name, self.status)?;
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
@@ -62,11 +81,13 @@ async fn fetch_status(url: hyper::Uri) -> Result<StatusCode, CrabtiveError> {
     let https = HttpsConnector::new();
     let client = Client::builder(TokioExecutor::new()).build::<_, Empty<Bytes>>(https);
 
-    let req = Request::builder()
+    let Ok(req) = Request::builder()
         .uri(url)
         .header(hyper::header::USER_AGENT, FIREFOX_USER_AGENT)
         .body::<Empty<Bytes>>(Empty::new())
-        .unwrap();
+    else {
+        return Err(CrabtiveError("Can't build request!"));
+    };
 
     let Ok(res) = client.request(req).await else {
         return Err(CrabtiveError("Can't send request!"));
