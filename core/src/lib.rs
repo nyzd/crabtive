@@ -60,13 +60,23 @@ impl Display for CheckStatus {
 
 #[derive(Clone, Debug)]
 pub struct CheckResult<'a> {
+    username: &'a str,
     info: &'a WebsiteInfo,
     status: CheckStatus,
 }
 
 impl Display for CheckResult<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: {}", self.info.name, self.status)?;
+        match self.status {
+            CheckStatus::Available => write!(
+                f,
+                "{}: {} -> {}",
+                self.info.name,
+                self.status,
+                parse_user_url(&self.info.user_url, self.username).unwrap()
+            ),
+            _ => write!(f, "{}: {}", self.info.name, self.status),
+        }?;
         Ok(())
     }
 }
@@ -120,6 +130,7 @@ impl<'a> AccountChecker {
         Ok(CheckResult {
             info: website,
             status: CheckStatus::from(status_code),
+            username,
         })
     }
 
